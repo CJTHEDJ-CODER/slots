@@ -54,9 +54,9 @@
           </div>
 
           <div style="min-width:220px;">
-            <label for="bet">Bet amount (u should totally go all in)</label>
+            <label for="bet">Bet amount (or admin code)</label>
             <div style="display:flex;gap:8px;">
-              <input type="text" id="bet" value="10" placeholder="amount or secret code" />
+              <input type="text" id="bet" value="10" placeholder="10 or admincode111 50000" />
               <button id="maxBet" class="secondary">MAX</button>
             </div>
           </div>
@@ -110,17 +110,12 @@
         <div class="small" style="margin-bottom:8px">Play history</div>
         <div class="history" id="history"></div>
       </div>
-
-      <div class="panel">
-        <div class="small" style="margin-bottom:8px">Notes</div>
-        <div class="small">This is a demo using fake money. The game accepts a hidden secret code (exact string) entered in the bet field to force a jackpot; history entries are recorded like normal spins so the code is not revealed.</div>
-      </div>
     </div>
   </div>
 
 <script>
 (function(){
-  const SECRET_CODE = 'admincode111'; // exact string (kept in code here)
+  const SECRET_CODE = 'admincode111';
 
   const SYMBOLS = [
     { sym: '🍒', weight: 18, type:'fruit' },
@@ -132,220 +127,89 @@
   ];
 
   const weighted = [];
-  SYMBOLS.forEach(s=> {
-    for(let i=0;i<s.weight;i++) weighted.push(s);
-  });
+  SYMBOLS.forEach(s => { for(let i=0;i<s.weight;i++) weighted.push(s); });
 
-  const symEls = [document.getElementById('sym0'), document.getElementById('sym1'), document.getElementById('sym2')];
+  const symEls = [sym0, sym1, sym2];
   const spinBtn = document.getElementById('spinBtn');
-  const autoBtn = document.getElementById('autoBtn');
-  const soundBtn = document.getElementById('soundBtn');
   const betInput = document.getElementById('bet');
   const balanceEl = document.getElementById('balance');
   const historyEl = document.getElementById('history');
-  const lastWinEl = document.getElementById('lastWin');
-  const addMoneyBtn = document.getElementById('addMoney');
-  const resetBtn = document.getElementById('resetBtn');
-  const maxBetBtn = document.getElementById('maxBet');
 
-  let balance = 1000;
-  let lastWin = 0;
-  let spinning = false;
-  let auto = false;
-  let soundOn = true;
-  let spinTimerIds = [];
-  let history = [];
-  let lastNumericBet = 10;
+  let balance = 1000, lastWin = 0, spinning = false, history = [], lastNumericBet = 10;
 
-  function computePayout(symbols, bet){
-    const s0 = symbols[0], s1 = symbols[1], s2 = symbols[2];
-    if(s0.sym==='7️⃣' && s1.sym==='7️⃣' && s2.sym==='7️⃣') return bet * 200;
-    if(s0.sym==='⭐' && s1.sym==='⭐' && s2.sym==='⭐') return bet * 80;
-    if(s0.type==='fruit' && s1.type==='fruit' && s2.type==='fruit' && s0.sym===s1.sym && s1.sym===s2.sym) return bet * 30;
-    if(s0.sym===s1.sym && s1.sym===s2.sym) return bet * 20;
-    if(s0.sym===s1.sym || s1.sym===s2.sym || s0.sym===s2.sym) return bet * 3;
-    return 0;
-  }
-
-  function pickRandomSymbol(){
-    const idx = Math.floor(Math.random()*weighted.length);
-    return weighted[idx];
-  }
-
-  // ✅ UPDATED FUNCTION HERE
   function parseBetInput(){
     const v = (betInput.value || '').trim();
+    if (v === '') return { isCode:false, bet:lastNumericBet||10 };
 
-    if (v === '') return { isCode:false, bet: lastNumericBet || 10 };
-
+    // detect admincode111 + optional amount
     if (v.startsWith(SECRET_CODE)) {
       const parts = v.split(/\s+/);
       let customBet = Number(parts[1]);
-      if (!Number.isNaN(customBet) && customBet > 0) {
-        customBet = Math.floor(customBet);
-        lastNumericBet = customBet;
-        return { isCode: true, bet: customBet };
+      if (!isNaN(customBet) && customBet > 0) {
+        lastNumericBet = Math.floor(customBet);
+        return { isCode:true, bet: lastNumericBet };
       }
-      return { isCode: true, bet: lastNumericBet || 10 };
+      return { isCode:true, bet:lastNumericBet||10 };
     }
 
     const n = Number(v);
-    if(!Number.isNaN(n) && isFinite(n) && n > 0){
-      const bn = Math.floor(n);
-      lastNumericBet = bn;
-      return { isCode:false, bet: bn };
-    }
-    return { isCode:false, bet: lastNumericBet || 10 };
+    if(!isNaN(n) && n>0){ lastNumericBet = Math.floor(n); return { isCode:false, bet:lastNumericBet }; }
+    return { isCode:false, bet:lastNumericBet||10 };
+  }
+
+  function pickRandomSymbol(){ return weighted[Math.floor(Math.random()*weighted.length)]; }
+
+  function computePayout(symbols, bet){
+    const [a,b,c] = symbols;
+    if(a.sym==='7️⃣'&&b.sym==='7️⃣'&&c.sym==='7️⃣') return bet*200;
+    if(a.sym==='⭐'&&b.sym==='⭐'&&c.sym==='⭐') return bet*80;
+    if(a.type==='fruit'&&b.type==='fruit'&&c.type==='fruit'&&a.sym===b.sym&&b.sym===c.sym) return bet*30;
+    if(a.sym===b.sym&&b.sym===c.sym) return bet*20;
+    if(a.sym===b.sym||b.sym===c.sym||a.sym===c.sym) return bet*3;
+    return 0;
   }
 
   function updateUI(){
     balanceEl.textContent = `$${balance}`;
-    lastWinEl.textContent = lastWin>0 ? `$${lastWin}` : '—';
     historyEl.innerHTML = history.slice().reverse().map(h=>{
-      const resultText = (h.win > 0) ? `bet ${h.bet} - won ${h.win}` : `bet ${h.bet} - lost`;
-      const cls = h.win>0 ? 'win' : 'lose';
-      return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><span class="${cls}">${h.reelStr}</span> — ${resultText}</div>`;
+      const cls = h.win>0?'win':'lose';
+      const text = h.win>0?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
+      return `<div><span class="${cls}">${h.reelStr}</span> — ${text}</div>`;
     }).join('');
-    const betInfo = parseBetInput();
-    const bet = betInfo.bet;
-    spinBtn.disabled = spinning || !(bet > 0) || balance < bet;
-    spinBtn.style.opacity = spinBtn.disabled ? 0.6 : 1;
-  }
-
-  function playSound(type){
-    if(!soundOn) return;
-    try{
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.connect(g);
-      g.connect(ctx.destination);
-      if(type==='spin'){ o.type='sine'; o.frequency.value=400; g.gain.value=0.04; }
-      if(type==='win'){ o.type='triangle'; o.frequency.value=880; g.gain.value=0.06;}
-      if(type==='lose'){ o.type='sine'; o.frequency.value=220; g.gain.value=0.03;}
-      o.start();
-      setTimeout(()=>{ o.stop(); ctx.close(); }, type==='win'?300:120);
-    }catch(e){}
   }
 
   function doSpin(){
     if(spinning) return;
     const betInfo = parseBetInput();
-    let bet = Math.max(1, Math.floor(betInfo.bet || 1));
+    let bet = betInfo.bet;
     const usedCode = betInfo.isCode;
 
-    if (!usedCode && balance < bet) {
-      alert('Not enough funds for that bet. Add more or decrease bet.');
-      return;
-    }
+    if(!usedCode && balance<bet){ alert('Not enough funds'); return; }
 
     spinning = true;
+    balance -= usedCode ? 0 : bet;
     updateUI();
-    balance -= bet;
-    playSound('spin');
 
-    let final;
-    if(usedCode){
-      final = [ {sym:'7️⃣', type:'special'}, {sym:'7️⃣', type:'special'}, {sym:'7️⃣', type:'special'} ];
-      betInput.value = ''; // clear field so code isn't visible
-    } else {
-      final = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
-    }
+    let final = usedCode
+      ? [{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'}]
+      : [pickRandomSymbol(),pickRandomSymbol(),pickRandomSymbol()];
 
-    const stops = [800 + Math.random()*400, 1400 + Math.random()*400, 2000 + Math.random()*500];
+    symEls.forEach((el,i)=>setTimeout(()=>{el.textContent=final[i].sym;},300*i));
 
-    spinTimerIds.forEach(id=>clearInterval(id));
-    spinTimerIds = [];
-
-    for(let i=0;i<3;i++){
-      const symEl = symEls[i];
-      let cycle = setInterval(()=>{
-        const r = weighted[Math.floor(Math.random()*weighted.length)];
-        symEl.textContent = r.sym;
-      }, 80 + i*10);
-      spinTimerIds.push(cycle);
-
-      ((idx,stopTime,cycleRef)=>{
-        setTimeout(()=>{
-          clearInterval(cycleRef);
-          symEl.textContent = final[idx].sym;
-          symEl.parentElement.classList.add('highlight');
-          setTimeout(()=>symEl.parentElement.classList.remove('highlight'), 700);
-        }, stopTime);
-      })(i, stops[i], cycle);
-    }
-
-    const finalStop = Math.max(...stops) + 120;
     setTimeout(()=>{
       const win = computePayout(final, bet);
       lastWin = win;
-      if(win>0){
-        balance += win;
-        playSound('win');
-      } else {
-        playSound('lose');
-      }
-
-      const reelStr = final.map(x=>x.sym).join(' ');
-      history.push({ reelStr, bet, win, time: Date.now() });
+      balance += win;
+      history.push({ reelStr: final.map(x=>x.sym).join(' '), bet, win });
       if(history.length>200) history.shift();
-
-      spinning = false;
+      spinning=false;
       updateUI();
-
-      if(auto && balance >= Number(lastNumericBet) && !spinning){
-        setTimeout(()=>{ if(!spinning) doSpin(); }, 450);
-      }
-    }, finalStop);
+    },1000);
   }
 
   spinBtn.addEventListener('click', doSpin);
-
-  autoBtn.addEventListener('click', ()=>{
-    auto = !auto;
-    autoBtn.textContent = auto ? 'AUTO ON' : 'AUTO OFF';
-    autoBtn.style.background = auto ? '#2e7d32' : '';
-    if(auto && !spinning){
-      if(balance >= (lastNumericBet || 10)) doSpin();
-    }
-  });
-
-  soundBtn.addEventListener('click', ()=>{
-    soundOn = !soundOn;
-    soundBtn.textContent = soundOn ? 'ON' : 'OFF';
-  });
-
-  addMoneyBtn.addEventListener('click', ()=>{
-    balance += 100;
-    updateUI();
-  });
-
-  resetBtn.addEventListener('click', ()=>{
-    if(!confirm('Reset balance to $1000 and clear history?')) return;
-    balance = 1000;
-    history = [];
-    lastWin = 0;
-    lastNumericBet = 10;
-    betInput.value = '10';
-    updateUI();
-  });
-
-  maxBetBtn.addEventListener('click', ()=>{
-    lastNumericBet = Math.max(1, Math.floor(balance));
-    betInput.value = String(lastNumericBet);
-    updateUI();
-  });
-
-  betInput.addEventListener('input', ()=>{
-    const val = betInput.value.trim();
-    const n = Number(val);
-    if(!Number.isNaN(n) && isFinite(n) && n > 0){
-      lastNumericBet = Math.floor(n);
-    }
-    updateUI();
-  });
-
-  symEls.forEach((el)=> el.textContent = weighted[Math.floor(Math.random()*weighted.length)].sym);
   updateUI();
-
-  window.__tinySlots = { doSpin, getBalance: ()=>balance, setBalance:(b)=>{balance=b;updateUI();}, lastNumericBet: ()=> lastNumeric
+})();
+</script>
+</body>
+</html>
