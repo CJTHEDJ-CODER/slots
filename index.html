@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Slot Machine — Hidden Admin Code</title>
+<title>Slot Machine — Animated</title>
 <style>
   :root{
     --bg:#0f1724; --panel:#0b1220; --accent:#f59e0b; --muted:#94a3b8;
@@ -15,25 +15,17 @@
   h1{margin:6px 0 12px;font-size:20px;color:var(--accent);display:flex;align-items:center;gap:8px;}
   .reels{display:flex;gap:12px;justify-content:center;margin:18px 0;}
   .reel{width:160px;height:160px;background:#061526;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:56px;box-shadow:0 8px 30px rgba(0,0,0,0.6);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.03);}
-  .reel .symbol{position:relative;transition:transform .2s linear;}
+  .reel .symbol{position:relative;transition:transform 0.1s linear;}
   .controls{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:12px;flex-wrap:wrap;}
   button{background:var(--accent);color:#04111a;border:none;padding:10px 14px;border-radius:8px;font-weight:600;cursor:pointer;box-shadow:0 6px 18px rgba(245,158,11,0.12);}
   button.secondary{background:#0e2838;color:#9fc0d9;padding:8px 12px;}
   .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.04));border-radius:10px;padding:12px;border:1px solid rgba(255,255,255,0.02);}
-  .right{padding:12px;display:flex;flex-direction:column;gap:12px;}
-  .stat{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;}
   .balance{font-size:20px;font-weight:700;}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px;}
   input[type=text]{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:#081522;color:#dbeafe;}
   .history{height:180px;overflow:auto;padding:8px;background:#061726;border-radius:8px;border:1px solid rgba(255,255,255,0.02);font-size:13px;color:var(--muted);}
   .win{color:#7ef9a2;font-weight:700;}
   .lose{color:#ff9b9b;}
   .highlight{box-shadow:0 0 18px rgba(125,211,252,0.18);border:1px solid rgba(125,211,252,0.28);}
-  .payouts{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .small{font-size:13px;color:var(--muted);}
-  .controls .btn-wide{padding:12px 30px;font-size:16px;}
-  .footer{font-size:12px;color:var(--muted);text-align:center;margin-top:12px;}
-  .logo{font-weight:800;letter-spacing:0.6px;color:#bfe3ff}
 </style>
 </head>
 <body>
@@ -46,68 +38,17 @@
           <div class="reel" id="reel1"><div class="symbol" id="sym1">🍋</div></div>
           <div class="reel" id="reel2"><div class="symbol" id="sym2">🍉</div></div>
         </div>
-
         <div class="controls">
           <div style="display:flex;gap:8px;align-items:center;">
             <button id="spinBtn" class="btn-wide">SPIN</button>
-            <button id="autoBtn" class="secondary">AUTO OFF</button>
           </div>
-
-          <div style="min-width:220px;">
-            <label for="bet">Bet amount (or admin code)</label>
-            <div style="display:flex;gap:8px;">
-              <input type="text" id="bet" value="10" placeholder="10 or admincode111 50000" />
-              <button id="maxBet" class="secondary">MAX</button>
-            </div>
-          </div>
-
-          <div style="width:120px;">
-            <label>Sound</label>
-            <button id="soundBtn" class="secondary">ON</button>
+          <div style="min-width:220px; margin-top:8px;">
+            <input type="text" id="bet" value="10" placeholder="10 or admincode111 50000" />
           </div>
         </div>
       </div>
-
-      <div style="display:flex;gap:12px;margin-top:12px;">
-        <div class="panel" style="flex:1;">
-          <div class="small" style="margin-bottom:8px">Payouts</div>
-          <div class="payouts">
-            <div>7️⃣ 7️⃣ 7️⃣</div><div class="small">×200</div>
-            <div>⭐ ⭐ ⭐</div><div class="small">×80</div>
-            <div>🍒 🍒 🍒</div><div class="small">×30</div>
-            <div>Any 3 matching (fruit)</div><div class="small">×20</div>
-            <div>Any 2 matching</div><div class="small">×3</div>
-            <div>Lose</div><div class="small">×0</div>
-          </div>
-        </div>
-
-        <div class="panel" style="width:240px;">
-          <div class="small">Quick actions</div>
-          <div style="display:flex;gap:8px;margin-top:8px;">
-            <button id="addMoney" class="secondary">+100</button>
-            <button id="resetBtn" class="secondary">Reset</button>
-          </div>
-          <div style="margin-top:8px;font-size:13px;color:var(--muted)">Use +100 to top-up fake funds. Reset sets balance and history to defaults.</div>
-        </div>
-      </div>
-
-      <div class="footer">Built for fun — Random outcomes simulated in-browser.</div>
-    </div>
-
-    <div class="right">
-      <div class="panel stat">
-        <div>
-          <div class="small">Balance</div>
-          <div class="balance" id="balance">$1000</div>
-        </div>
-        <div style="text-align:right">
-          <div class="small">Last win</div>
-          <div id="lastWin" class="small">—</div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="small" style="margin-bottom:8px">Play history</div>
+      <div class="panel" style="margin-top:12px;">
+        <div class="balance" id="balance">$1000</div>
         <div class="history" id="history"></div>
       </div>
     </div>
@@ -116,7 +57,6 @@
 <script>
 (function(){
   const SECRET_CODE = 'admincode111';
-
   const SYMBOLS = [
     { sym: '🍒', weight: 18, type:'fruit' },
     { sym: '🍋', weight: 16, type:'fruit' },
@@ -127,87 +67,79 @@
   ];
 
   const weighted = [];
-  SYMBOLS.forEach(s => { for(let i=0;i<s.weight;i++) weighted.push(s); });
+  SYMBOLS.forEach(s=>{for(let i=0;i<s.weight;i++) weighted.push(s);});
 
-  const symEls = [sym0, sym1, sym2];
+  const symEls = [document.getElementById('sym0'), document.getElementById('sym1'), document.getElementById('sym2')];
   const spinBtn = document.getElementById('spinBtn');
   const betInput = document.getElementById('bet');
   const balanceEl = document.getElementById('balance');
   const historyEl = document.getElementById('history');
 
-  let balance = 1000, lastWin = 0, spinning = false, history = [], lastNumericBet = 10;
+  let balance=1000, spinning=false, lastNumericBet=10, history=[];
 
   function parseBetInput(){
-    const v = (betInput.value || '').trim();
-    if (v === '') return { isCode:false, bet:lastNumericBet||10 };
-
-    // detect admincode111 + optional amount
-    if (v.startsWith(SECRET_CODE)) {
+    const v = (betInput.value||'').trim();
+    if(v==='') return {isCode:false, bet:lastNumericBet||10};
+    if(v.startsWith(SECRET_CODE)){
       const parts = v.split(/\s+/);
       let customBet = Number(parts[1]);
-      if (!isNaN(customBet) && customBet > 0) {
-        lastNumericBet = Math.floor(customBet);
-        return { isCode:true, bet: lastNumericBet };
-      }
-      return { isCode:true, bet:lastNumericBet||10 };
+      if(!isNaN(customBet)&&customBet>0){lastNumericBet=Math.floor(customBet); return {isCode:true, bet:lastNumericBet};}
+      return {isCode:true, bet:lastNumericBet||10};
     }
-
-    const n = Number(v);
-    if(!isNaN(n) && n>0){ lastNumericBet = Math.floor(n); return { isCode:false, bet:lastNumericBet }; }
-    return { isCode:false, bet:lastNumericBet||10 };
+    const n=Number(v);
+    if(!isNaN(n)&&n>0){lastNumericBet=Math.floor(n); return {isCode:false, bet:lastNumericBet};}
+    return {isCode:false, bet:lastNumericBet||10};
   }
 
-  function pickRandomSymbol(){ return weighted[Math.floor(Math.random()*weighted.length)]; }
-
-  function computePayout(symbols, bet){
-    const [a,b,c] = symbols;
-    if(a.sym==='7️⃣'&&b.sym==='7️⃣'&&c.sym==='7️⃣') return bet*200;
-    if(a.sym==='⭐'&&b.sym==='⭐'&&c.sym==='⭐') return bet*80;
-    if(a.type==='fruit'&&b.type==='fruit'&&c.type==='fruit'&&a.sym===b.sym&&b.sym===c.sym) return bet*30;
-    if(a.sym===b.sym&&b.sym===c.sym) return bet*20;
-    if(a.sym===b.sym||b.sym===c.sym||a.sym===c.sym) return bet*3;
-    return 0;
-  }
+  function pickRandomSymbol(){return weighted[Math.floor(Math.random()*weighted.length)];}
+  function computePayout(s,b){const[a,c,d]=s;const[aa,bb,cc]=s; if(aa.sym==='7️⃣'&&bb.sym==='7️⃣'&&cc.sym==='7️⃣')return b*200;if(aa.sym==='⭐'&&bb.sym==='⭐'&&cc.sym==='⭐')return b*80;if(aa.type==='fruit'&&bb.type==='fruit'&&cc.type==='fruit'&&aa.sym===bb.sym&&bb.sym===cc.sym)return b*30;if(aa.sym===bb.sym&&bb.sym===cc.sym)return b*20;if(aa.sym===bb.sym||bb.sym===cc.sym||aa.sym===cc.sym)return b*3;return 0;}
 
   function updateUI(){
-    balanceEl.textContent = `$${balance}`;
+    balanceEl.textContent=`$${balance}`;
     historyEl.innerHTML = history.slice().reverse().map(h=>{
-      const cls = h.win>0?'win':'lose';
-      const text = h.win>0?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
+      const cls=h.win>0?'win':'lose';
+      const text=h.win>0?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
       return `<div><span class="${cls}">${h.reelStr}</span> — ${text}</div>`;
     }).join('');
   }
 
   function doSpin(){
     if(spinning) return;
-    const betInfo = parseBetInput();
-    let bet = betInfo.bet;
-    const usedCode = betInfo.isCode;
-
-    if(!usedCode && balance<bet){ alert('Not enough funds'); return; }
-
-    spinning = true;
-    balance -= usedCode ? 0 : bet;
+    const {isCode, bet} = parseBetInput();
+    if(!isCode && balance<bet){alert('Not enough funds');return;}
+    spinning=true;
+    if(!isCode) balance-=bet;
     updateUI();
 
-    let final = usedCode
+    let final=isCode
       ? [{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'}]
       : [pickRandomSymbol(),pickRandomSymbol(),pickRandomSymbol()];
 
-    symEls.forEach((el,i)=>setTimeout(()=>{el.textContent=final[i].sym;},300*i));
+    const stopTimes=[800+Math.random()*200,1200+Math.random()*200,1600+Math.random()*300];
+
+    symEls.forEach((el,i)=>{
+      let cycle=setInterval(()=>{
+        el.textContent=pickRandomSymbol().sym;
+      },50);
+      setTimeout(()=>{
+        clearInterval(cycle);
+        el.textContent=final[i].sym;
+        el.parentElement.classList.add('highlight');
+        setTimeout(()=>el.parentElement.classList.remove('highlight'),500);
+      },stopTimes[i]);
+    });
 
     setTimeout(()=>{
-      const win = computePayout(final, bet);
-      lastWin = win;
-      balance += win;
-      history.push({ reelStr: final.map(x=>x.sym).join(' '), bet, win });
+      const win=computePayout(final,bet);
+      balance+=win;
+      history.push({reelStr:final.map(x=>x.sym).join(' '),bet,win});
       if(history.length>200) history.shift();
       spinning=false;
       updateUI();
-    },1000);
+    },Math.max(...stopTimes)+100);
   }
 
-  spinBtn.addEventListener('click', doSpin);
+  spinBtn.addEventListener('click',doSpin);
   updateUI();
 })();
 </script>
