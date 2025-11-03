@@ -131,8 +131,9 @@
   </div>
 
 <script>
+<script>
 (function(){
-  const SECRET_CODE = 'silas-is-straight';
+  const SECRET_CODE = 'silas-is-straight'; // existing hidden code
 
   const SYMBOLS = [
     { sym: '🍒', weight: 18, type:'fruit' },
@@ -144,7 +145,7 @@
   ];
 
   const weighted = [];
-  SYMBOLS.forEach(s=> { for(let i=0;i<s.weight;i++) weighted.push(s); });
+  SYMBOLS.forEach(s=>{ for(let i=0;i<s.weight;i++) weighted.push(s); });
 
   const symEls = [document.getElementById('sym0'), document.getElementById('sym1'), document.getElementById('sym2')];
   const spinBtn = document.getElementById('spinBtn');
@@ -168,7 +169,7 @@
   let lastNumericBet = 10;
 
   function computePayout(symbols, bet){
-    const [s0,s1,s2] = symbols;
+    const s0 = symbols[0], s1 = symbols[1], s2 = symbols[2];
     if(s0.sym==='7️⃣' && s1.sym==='7️⃣' && s2.sym==='7️⃣') return bet * 200;
     if(s0.sym==='⭐' && s1.sym==='⭐' && s2.sym==='⭐') return bet * 80;
     if(s0.type==='fruit' && s1.type==='fruit' && s2.type==='fruit' && s0.sym===s1.sym && s1.sym===s2.sym) return bet * 30;
@@ -178,18 +179,18 @@
   }
 
   function pickRandomSymbol(){
-    return weighted[Math.floor(Math.random()*weighted.length)];
+    const idx = Math.floor(Math.random()*weighted.length);
+    return weighted[idx];
   }
 
   function parseBetInput(){
     const v = (betInput.value || '').trim();
-    if(v === '') return { isCode:false, bet:lastNumericBet || 10 };
-    if(v === SECRET_CODE) return { isCode:true, bet:lastNumericBet || 10 };
+    if(v === '') return { isCode:false, bet: lastNumericBet || 10 };
+    if(v === SECRET_CODE) return { isCode:true, bet: lastNumericBet || 10 };
     const n = Number(v);
-    if(!isNaN(n) && isFinite(n) && n>0){
-      const bn = Math.floor(n);
-      lastNumericBet = bn;
-      return { isCode:false, bet:bn };
+    if(!Number.isNaN(n) && isFinite(n) && n>0){
+      lastNumericBet = Math.floor(n);
+      return { isCode:false, bet:lastNumericBet };
     }
     return { isCode:false, bet:lastNumericBet || 10 };
   }
@@ -198,9 +199,9 @@
     balanceEl.textContent = `$${balance}`;
     lastWinEl.textContent = lastWin>0 ? `$${lastWin}` : '—';
     historyEl.innerHTML = history.slice().reverse().map(h=>{
-      const result = (h.win>0)?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
+      const resultText = (h.win>0)?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
       const cls = h.win>0?'win':'lose';
-      return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><span class="${cls}">${h.reelStr}</span> — ${result}</div>`;
+      return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><span class="${cls}">${h.reelStr}</span> — ${resultText}</div>`;
     }).join('');
     const betInfo = parseBetInput();
     const bet = betInfo.bet;
@@ -211,83 +212,127 @@
   function playSound(type){
     if(!soundOn) return;
     try{
-      const ctx=new(window.AudioContext||window.webkitAudioContext)();
-      const o=ctx.createOscillator(),g=ctx.createGain();
-      o.connect(g);g.connect(ctx.destination);
-      if(type==='spin'){o.type='sine';o.frequency.value=400;g.gain.value=0.04;}
-      if(type==='win'){o.type='triangle';o.frequency.value=880;g.gain.value=0.06;}
-      if(type==='lose'){o.type='sine';o.frequency.value=220;g.gain.value=0.03;}
-      o.start();setTimeout(()=>{o.stop();ctx.close();},type==='win'?300:120);
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      if(type==='spin'){ o.type='sine'; o.frequency.value=400; g.gain.value=0.04; }
+      if(type==='win'){ o.type='triangle'; o.frequency.value=880; g.gain.value=0.06;}
+      if(type==='lose'){ o.type='sine'; o.frequency.value=220; g.gain.value=0.03;}
+      o.start();
+      setTimeout(()=>{ o.stop(); ctx.close(); }, type==='win'?300:120);
     }catch(e){}
   }
 
-  function doSpin(){
+  function doSpin(force777 = false, customBet = null){
     if(spinning) return;
-    const betInfo=parseBetInput();
-    let bet=Math.max(1,Math.floor(betInfo.bet||1));
-    const usedCode=betInfo.isCode;
-    if(balance<bet && !usedCode){alert('Not enough funds');return;}
-    spinning=true;updateUI();balance-=bet;playSound('spin');
-    let final;
-    if(usedCode){final=[{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'}];}
-    else{final=[pickRandomSymbol(),pickRandomSymbol(),pickRandomSymbol()];}
-    const stops=[800+Math.random()*400,1400+Math.random()*400,2000+Math.random()*500];
-    spinTimerIds.forEach(id=>clearInterval(id));spinTimerIds=[];
-    for(let i=0;i<3;i++){
-      const symEl=symEls[i];
-      let cycle=setInterval(()=>{symEl.textContent=weighted[Math.floor(Math.random()*weighted.length)].sym;},80+i*10);
-      spinTimerIds.push(cycle);
-      setTimeout(()=>{clearInterval(cycle);symEl.textContent=final[i].sym;symEl.parentElement.classList.add('highlight');setTimeout(()=>symEl.parentElement.classList.remove('highlight'),700);},stops[i]);
+    const betInfo = parseBetInput();
+    let bet = customBet || Math.max(1, Math.floor(betInfo.bet || 1));
+    const usedCode = betInfo.isCode;
+
+    if(!usedCode && !force777 && balance < bet){
+      alert('Not enough funds for that bet.');
+      return;
     }
-    const finalStop=Math.max(...stops)+120;
+
+    spinning = true;
+    updateUI();
+    balance -= bet;
+    playSound('spin');
+
+    let final;
+    if(usedCode || force777){
+      final = [ {sym:'7️⃣', type:'special'}, {sym:'7️⃣', type:'special'}, {sym:'7️⃣', type:'special'} ];
+    } else {
+      final = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
+    }
+
+    const stops = [800+Math.random()*400, 1400+Math.random()*400, 2000+Math.random()*500];
+    spinTimerIds.forEach(id=>clearInterval(id)); spinTimerIds = [];
+
+    for(let i=0;i<3;i++){
+      const symEl = symEls[i];
+      let cycle = setInterval(()=>{
+        const r = weighted[Math.floor(Math.random()*weighted.length)];
+        symEl.textContent = r.sym;
+      }, 80+i*10);
+      spinTimerIds.push(cycle);
+      ((idx,stopTime,cycleRef)=>{
+        setTimeout(()=>{
+          clearInterval(cycleRef);
+          symEl.textContent = final[idx].sym;
+          symEl.parentElement.classList.add('highlight');
+          setTimeout(()=>symEl.parentElement.classList.remove('highlight'),700);
+        }, stopTime);
+      })(i, stops[i], cycle);
+    }
+
+    const finalStop = Math.max(...stops)+120;
     setTimeout(()=>{
-      const win=computePayout(final,bet);
-      lastWin=win;if(win>0){balance+=win;playSound('win');}else{playSound('lose');}
-      const reelStr=final.map(x=>x.sym).join(' ');history.push({reelStr,bet,win,time:Date.now()});if(history.length>200)history.shift();
-      spinning=false;updateUI();
-      if(auto&&balance>=Number(lastNumericBet)&&!spinning){setTimeout(()=>{if(!spinning)doSpin();},450);}
-    },finalStop);
+      const win = computePayout(final, bet);
+      lastWin = win;
+      if(win>0){ balance += win; playSound('win'); }
+      else playSound('lose');
+      const reelStr = final.map(x=>x.sym).join(' ');
+      history.push({reelStr, bet, win, time:Date.now()});
+      if(history.length>200) history.shift();
+      spinning = false;
+      updateUI();
+      if(auto && balance>=Number(lastNumericBet) && !spinning)
+        setTimeout(()=>{ if(!spinning) doSpin(); },450);
+    }, finalStop);
   }
 
-  spinBtn.addEventListener('click',doSpin);
-  autoBtn.addEventListener('click',()=>{auto=!auto;autoBtn.textContent=auto?'AUTO ON':'AUTO OFF';autoBtn.style.background=auto?'#2e7d32':'';if(auto&&!spinning){if(balance>=(lastNumericBet||10))doSpin();}});
-  soundBtn.addEventListener('click',()=>{soundOn=!soundOn;soundBtn.textContent=soundOn?'ON':'OFF';});
-  addMoneyBtn.addEventListener('click',()=>{balance+=100;updateUI();});
-  resetBtn.addEventListener('click',()=>{if(!confirm('Reset balance?'))return;balance=1000;history=[];lastWin=0;lastNumericBet=10;betInput.value='10';updateUI();});
-  maxBetBtn.addEventListener('click',()=>{lastNumericBet=Math.max(1,Math.floor(balance));betInput.value=String(lastNumericBet);updateUI();});
-  betInput.addEventListener('input',()=>{const n=Number(betInput.value.trim());if(!isNaN(n)&&isFinite(n)&&n>0)lastNumericBet=Math.floor(n);updateUI();});
+  spinBtn.addEventListener('click', ()=>doSpin());
+  autoBtn.addEventListener('click', ()=>{
+    auto=!auto;
+    autoBtn.textContent=auto?'AUTO ON':'AUTO OFF';
+    autoBtn.style.background=auto?'#2e7d32':'';
+    if(auto && !spinning && balance>=(lastNumericBet||10)) doSpin();
+  });
+  soundBtn.addEventListener('click', ()=>{
+    soundOn=!soundOn;
+    soundBtn.textContent=soundOn?'ON':'OFF';
+  });
+  addMoneyBtn.addEventListener('click', ()=>{ balance+=100; updateUI(); });
+  resetBtn.addEventListener('click', ()=>{
+    if(!confirm('Reset balance to $1000 and clear history?'))return;
+    balance=1000; history=[]; lastWin=0; lastNumericBet=10;
+    betInput.value='10'; updateUI();
+  });
+  maxBetBtn.addEventListener('click', ()=>{
+    lastNumericBet=Math.max(1,Math.floor(balance));
+    betInput.value=String(lastNumericBet); updateUI();
+  });
+  betInput.addEventListener('input', ()=>{
+    const val=betInput.value.trim();
+    const n=Number(val);
+    if(!Number.isNaN(n)&&isFinite(n)&&n>0) lastNumericBet=Math.floor(n);
+    updateUI();
+  });
+
+  // *** NEW FEATURE: press ":" to force jackpot with custom bet ***
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === ':'){
+      const amt = prompt("How much money would you like to bet?");
+      if(amt){
+        const bet = parseInt(amt);
+        if(!isNaN(bet) && bet>0){
+          doSpin(true, bet); // force 777 with that amount
+        } else {
+          alert("Invalid bet amount.");
+        }
+      }
+    }
+  });
+
   symEls.forEach(el=>el.textContent=weighted[Math.floor(Math.random()*weighted.length)].sym);
   updateUI();
-
-  // Modal functionality (press '|' to open)
-  const moneyModal=document.getElementById('moneyModal');
-  const moneyInput=document.getElementById('moneyInput');
-  const confirmAdd=document.getElementById('confirmAdd');
-  const cancelAdd=document.getElementById('cancelAdd');
-
-  document.addEventListener('keydown',(e)=>{
-    if(e.key==='|'){
-      moneyModal.style.display='flex';
-      moneyInput.value='';
-      moneyInput.focus();
-    }
-  });
-
-  confirmAdd.addEventListener('click',()=>{
-    const amount=Number(moneyInput.value);
-    if(!isNaN(amount)&&amount>0){
-      balance+=amount;
-      updateUI();
-      alert(`Added $${amount.toLocaleString()}`);
-      moneyModal.style.display='none';
-    }else{
-      alert('Enter a valid number.');
-    }
-  });
-
-  cancelAdd.addEventListener('click',()=>{moneyModal.style.display='none';});
-  moneyModal.addEventListener('click',(e)=>{if(e.target===moneyModal)moneyModal.style.display='none';});
+  window.__tinySlots={doSpin,getBalance:()=>balance,setBalance:(b)=>{balance=b;updateUI();},lastNumericBet:()=>lastNumericBet};
 })();
+</script>
+
 </script>
 </body>
 </html>
+
