@@ -41,27 +41,99 @@
     <div class="left">
       <h1 class="logo">🎰 Tiny Slots</h1>
       <div class="panel">
-        <div class="reels">
-          <div class="reel"><div class="symbol" id="sym0">🍒</div></div>
-          <div class="reel"><div class="symbol" id="sym1">🍋</div></div>
-          <div class="reel"><div class="symbol" id="sym2">🍉</div></div>
+        <div class="reels" id="reels">
+          <div class="reel" id="reel0"><div class="symbol" id="sym0">🍒</div></div>
+          <div class="reel" id="reel1"><div class="symbol" id="sym1">🍋</div></div>
+          <div class="reel" id="reel2"><div class="symbol" id="sym2">🍉</div></div>
         </div>
 
         <div class="controls">
-          <button id="spinBtn" class="btn-wide">SPIN</button>
-          <button id="autoBtn" class="secondary">AUTO OFF</button>
-          <label for="bet">Bet amount (or secret code)</label>
-          <input type="text" id="bet" value="10" placeholder="amount or secret code" />
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button id="spinBtn" class="btn-wide">SPIN</button>
+            <button id="autoBtn" class="secondary">AUTO OFF</button>
+          </div>
+
+          <div style="min-width:220px;">
+            <label for="bet">Bet amount (or secret code)</label>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="bet" value="10" placeholder="amount or secret code" />
+              <button id="maxBet" class="secondary">MAX</button>
+            </div>
+          </div>
+
+          <div style="width:120px;">
+            <label>Sound</label>
+            <button id="soundBtn" class="secondary">ON</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:12px;">
+        <div class="panel" style="flex:1;">
+          <div class="small" style="margin-bottom:8px">Payouts</div>
+          <div class="payouts">
+            <div>7️⃣ 7️⃣ 7️⃣</div><div class="small">×200</div>
+            <div>⭐ ⭐ ⭐</div><div class="small">×80</div>
+            <div>🍒 🍒 🍒</div><div class="small">×30</div>
+            <div>Any 3 matching (fruit)</div><div class="small">×20</div>
+            <div>Any 2 matching</div><div class="small">×3</div>
+            <div>Lose</div><div class="small">×0</div>
+          </div>
+        </div>
+
+        <div class="panel" style="width:240px;">
+          <div class="small">Quick actions</div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button id="addMoney" class="secondary">+100</button>
+            <button id="resetBtn" class="secondary">Reset</button>
+          </div>
+          <div style="margin-top:8px;font-size:13px;color:var(--muted)">Use +100 to top-up fake funds. Reset sets balance and history to defaults.</div>
         </div>
       </div>
 
       <div class="footer">Built for fun — Random outcomes simulated in-browser.</div>
     </div>
+
+    <div class="right">
+      <div class="panel stat">
+        <div>
+          <div class="small">Balance</div>
+          <div class="balance" id="balance">$1000</div>
+        </div>
+        <div style="text-align:right">
+          <div class="small">Last win</div>
+          <div id="lastWin" class="small">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="small" style="margin-bottom:8px">Play history</div>
+        <div class="history" id="history"></div>
+      </div>
+
+      <div class="panel">
+        <div class="small" style="margin-bottom:8px">Notes</div>
+        <div class="small">This is a demo using fake money. The game accepts a hidden secret code (exact string) entered in the bet field to force a jackpot; history entries are recorded like normal spins so the code is not revealed.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Money Modal -->
+  <div id="moneyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:9999;">
+    <div style="background:#0b1220;padding:20px 28px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);text-align:center;max-width:300px;width:90%;">
+      <h3 style="margin-bottom:12px;color:#f59e0b;">Add Money</h3>
+      <input type="number" id="moneyInput" placeholder="Enter amount" style="width:100%;padding:8px;border-radius:8px;border:none;background:#081522;color:#dbeafe;margin-bottom:14px;">
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button id="confirmAdd" style="background:#f59e0b;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;">Add</button>
+        <button id="cancelAdd" style="background:#0e2838;color:#9fc0d9;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
   </div>
 
 <script>
 (function(){
-  const SECRET_CODE = '8--'; // admin code
+  const SECRET_CODE = 'silas-is-straight';
+
   const SYMBOLS = [
     { sym: '🍒', weight: 18, type:'fruit' },
     { sym: '🍋', weight: 16, type:'fruit' },
@@ -70,60 +142,151 @@
     { sym: '⭐', weight: 8, type:'special' },
     { sym: '7️⃣', weight: 4, type:'special' }
   ];
+
   const weighted = [];
-  SYMBOLS.forEach(s=>{ for(let i=0;i<s.weight;i++) weighted.push(s); });
-  const symEls = [document.getElementById('sym0'),document.getElementById('sym1'),document.getElementById('sym2')];
+  SYMBOLS.forEach(s=> { for(let i=0;i<s.weight;i++) weighted.push(s); });
+
+  const symEls = [document.getElementById('sym0'), document.getElementById('sym1'), document.getElementById('sym2')];
   const spinBtn = document.getElementById('spinBtn');
+  const autoBtn = document.getElementById('autoBtn');
+  const soundBtn = document.getElementById('soundBtn');
   const betInput = document.getElementById('bet');
+  const balanceEl = document.getElementById('balance');
+  const historyEl = document.getElementById('history');
+  const lastWinEl = document.getElementById('lastWin');
+  const addMoneyBtn = document.getElementById('addMoney');
+  const resetBtn = document.getElementById('resetBtn');
+  const maxBetBtn = document.getElementById('maxBet');
 
   let balance = 1000;
+  let lastWin = 0;
   let spinning = false;
+  let auto = false;
+  let soundOn = true;
+  let spinTimerIds = [];
+  let history = [];
   let lastNumericBet = 10;
 
-  function pickRandomSymbol(){ return weighted[Math.floor(Math.random()*weighted.length)]; }
-
-  function computePayout(symbols,bet){
+  function computePayout(symbols, bet){
     const [s0,s1,s2] = symbols;
-    if(s0.sym==='7️⃣'&&s1.sym==='7️⃣'&&s2.sym==='7️⃣') return bet*200;
-    if(s0.sym==='⭐'&&s1.sym==='⭐'&&s2.sym==='⭐') return bet*80;
-    if(s0.type==='fruit'&&s1.type==='fruit'&&s2.type==='fruit'&&s0.sym===s1.sym&&s1.sym===s2.sym) return bet*30;
-    if(s0.sym===s1.sym&&s1.sym===s2.sym) return bet*20;
-    if(s0.sym===s1.sym||s1.sym===s2.sym||s0.sym===s2.sym) return bet*3;
+    if(s0.sym==='7️⃣' && s1.sym==='7️⃣' && s2.sym==='7️⃣') return bet * 200;
+    if(s0.sym==='⭐' && s1.sym==='⭐' && s2.sym==='⭐') return bet * 80;
+    if(s0.type==='fruit' && s1.type==='fruit' && s2.type==='fruit' && s0.sym===s1.sym && s1.sym===s2.sym) return bet * 30;
+    if(s0.sym===s1.sym && s1.sym===s2.sym) return bet * 20;
+    if(s0.sym===s1.sym || s1.sym===s2.sym || s0.sym===s2.sym) return bet * 3;
     return 0;
   }
 
-  function doSpin(force777=false, customBet=null){
-    if(spinning) return;
-    let bet = customBet || Math.max(1,Math.floor(Number(betInput.value)||lastNumericBet));
-    if(!force777 && balance<bet){ alert('Not enough funds'); return; }
-    spinning=true; balance-=bet;
-    let final = force777?[{sym:'7️⃣'},{sym:'7️⃣'},{sym:'7️⃣'}]:[pickRandomSymbol(),pickRandomSymbol(),pickRandomSymbol()];
-    const stops=[800+Math.random()*400,1400+Math.random()*400,2000+Math.random()*500];
-
-    symEls.forEach((el,i)=>{
-      const cycle = setInterval(()=>{ el.textContent=pickRandomSymbol().sym; },80+i*10);
-      setTimeout(()=>{ clearInterval(cycle); el.textContent=final[i].sym; el.parentElement.classList.add('highlight'); setTimeout(()=>el.parentElement.classList.remove('highlight'),700); }, stops[i]);
-    });
-
-    setTimeout(()=>{
-      const win = computePayout(final,bet); if(win>0) balance+=win;
-      spinning=false; console.log(`Spin complete. Balance: $${balance}, Win: $${win}`);
-    }, Math.max(...stops)+200);
+  function pickRandomSymbol(){
+    return weighted[Math.floor(Math.random()*weighted.length)];
   }
 
-  spinBtn.addEventListener('click',()=>doSpin());
+  function parseBetInput(){
+    const v = (betInput.value || '').trim();
+    if(v === '') return { isCode:false, bet:lastNumericBet || 10 };
+    if(v === SECRET_CODE) return { isCode:true, bet:lastNumericBet || 10 };
+    const n = Number(v);
+    if(!isNaN(n) && isFinite(n) && n>0){
+      const bn = Math.floor(n);
+      lastNumericBet = bn;
+      return { isCode:false, bet:bn };
+    }
+    return { isCode:false, bet:lastNumericBet || 10 };
+  }
+
+  function updateUI(){
+    balanceEl.textContent = `$${balance}`;
+    lastWinEl.textContent = lastWin>0 ? `$${lastWin}` : '—';
+    historyEl.innerHTML = history.slice().reverse().map(h=>{
+      const result = (h.win>0)?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
+      const cls = h.win>0?'win':'lose';
+      return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><span class="${cls}">${h.reelStr}</span> — ${result}</div>`;
+    }).join('');
+    const betInfo = parseBetInput();
+    const bet = betInfo.bet;
+    spinBtn.disabled = spinning || !(bet>0) || balance<bet;
+    spinBtn.style.opacity = spinBtn.disabled?0.6:1;
+  }
+
+  function playSound(type){
+    if(!soundOn) return;
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      if(type==='spin'){o.type='sine';o.frequency.value=400;g.gain.value=0.04;}
+      if(type==='win'){o.type='triangle';o.frequency.value=880;g.gain.value=0.06;}
+      if(type==='lose'){o.type='sine';o.frequency.value=220;g.gain.value=0.03;}
+      o.start();setTimeout(()=>{o.stop();ctx.close();},type==='win'?300:120);
+    }catch(e){}
+  }
+
+  function doSpin(){
+    if(spinning) return;
+    const betInfo=parseBetInput();
+    let bet=Math.max(1,Math.floor(betInfo.bet||1));
+    const usedCode=betInfo.isCode;
+    if(balance<bet && !usedCode){alert('Not enough funds');return;}
+    spinning=true;updateUI();balance-=bet;playSound('spin');
+    let final;
+    if(usedCode){final=[{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'}];}
+    else{final=[pickRandomSymbol(),pickRandomSymbol(),pickRandomSymbol()];}
+    const stops=[800+Math.random()*400,1400+Math.random()*400,2000+Math.random()*500];
+    spinTimerIds.forEach(id=>clearInterval(id));spinTimerIds=[];
+    for(let i=0;i<3;i++){
+      const symEl=symEls[i];
+      let cycle=setInterval(()=>{symEl.textContent=weighted[Math.floor(Math.random()*weighted.length)].sym;},80+i*10);
+      spinTimerIds.push(cycle);
+      setTimeout(()=>{clearInterval(cycle);symEl.textContent=final[i].sym;symEl.parentElement.classList.add('highlight');setTimeout(()=>symEl.parentElement.classList.remove('highlight'),700);},stops[i]);
+    }
+    const finalStop=Math.max(...stops)+120;
+    setTimeout(()=>{
+      const win=computePayout(final,bet);
+      lastWin=win;if(win>0){balance+=win;playSound('win');}else{playSound('lose');}
+      const reelStr=final.map(x=>x.sym).join(' ');history.push({reelStr,bet,win,time:Date.now()});if(history.length>200)history.shift();
+      spinning=false;updateUI();
+      if(auto&&balance>=Number(lastNumericBet)&&!spinning){setTimeout(()=>{if(!spinning)doSpin();},450);}
+    },finalStop);
+  }
+
+  spinBtn.addEventListener('click',doSpin);
+  autoBtn.addEventListener('click',()=>{auto=!auto;autoBtn.textContent=auto?'AUTO ON':'AUTO OFF';autoBtn.style.background=auto?'#2e7d32':'';if(auto&&!spinning){if(balance>=(lastNumericBet||10))doSpin();}});
+  soundBtn.addEventListener('click',()=>{soundOn=!soundOn;soundBtn.textContent=soundOn?'ON':'OFF';});
+  addMoneyBtn.addEventListener('click',()=>{balance+=100;updateUI();});
+  resetBtn.addEventListener('click',()=>{if(!confirm('Reset balance?'))return;balance=1000;history=[];lastWin=0;lastNumericBet=10;betInput.value='10';updateUI();});
+  maxBetBtn.addEventListener('click',()=>{lastNumericBet=Math.max(1,Math.floor(balance));betInput.value=String(lastNumericBet);updateUI();});
+  betInput.addEventListener('input',()=>{const n=Number(betInput.value.trim());if(!isNaN(n)&&isFinite(n)&&n>0)lastNumericBet=Math.floor(n);updateUI();});
+  symEls.forEach(el=>el.textContent=weighted[Math.floor(Math.random()*weighted.length)].sym);
+  updateUI();
+
+  // Modal functionality (press '|' to open)
+  const moneyModal=document.getElementById('moneyModal');
+  const moneyInput=document.getElementById('moneyInput');
+  const confirmAdd=document.getElementById('confirmAdd');
+  const cancelAdd=document.getElementById('cancelAdd');
 
   document.addEventListener('keydown',(e)=>{
-    if(e.key===':'){
-      const amt = prompt("How much money would you like to bet?");
-      const val = parseInt(amt);
-      if(val>0) doSpin(true,val);
-    } else if(e.key==='8'){
-      const code = prompt("Enter admin code:");
-      if(code===SECRET_CODE) doSpin(true, lastNumericBet);
+    if(e.key==='|'){
+      moneyModal.style.display='flex';
+      moneyInput.value='';
+      moneyInput.focus();
     }
   });
 
+  confirmAdd.addEventListener('click',()=>{
+    const amount=Number(moneyInput.value);
+    if(!isNaN(amount)&&amount>0){
+      balance+=amount;
+      updateUI();
+      alert(`Added $${amount.toLocaleString()}`);
+      moneyModal.style.display='none';
+    }else{
+      alert('Enter a valid number.');
+    }
+  });
+
+  cancelAdd.addEventListener('click',()=>{moneyModal.style.display='none';});
+  moneyModal.addEventListener('click',(e)=>{if(e.target===moneyModal)moneyModal.style.display='none';});
 })();
 </script>
 </body>
