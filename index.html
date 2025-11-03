@@ -56,7 +56,6 @@
           <div style="min-width:220px;">
             <label for="bet">Bet amount (or secret code)</label>
             <div style="display:flex;gap:8px;">
-              <!-- text so secret code can be entered -->
               <input type="text" id="bet" value="10" placeholder="amount or secret code" />
               <button id="maxBet" class="secondary">MAX</button>
             </div>
@@ -119,18 +118,22 @@
     </div>
   </div>
 
+  <!-- Add Money Modal -->
+  <div id="moneyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;z-index:9999;">
+    <div style="background:#0b1220;padding:20px 28px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);text-align:center;max-width:300px;width:90%;">
+      <h3 style="margin-bottom:12px;color:#f59e0b;">Add Money</h3>
+      <input type="number" id="moneyInput" placeholder="Enter amount" style="width:100%;padding:8px;border-radius:8px;border:none;background:#081522;color:#dbeafe;margin-bottom:14px;">
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <button id="confirmAdd" style="background:#f59e0b;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;">Add</button>
+        <button id="cancelAdd" style="background:#0e2838;color:#9fc0d9;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
 <script>
-/*
-  Tiny Slots — hidden admin behavior
-  - If you type the exact secret string in the bet field it forces 7️⃣ 7️⃣ 7️⃣.
-  - The numeric bet applied when secret is used is the last numeric bet you entered (fallback 10).
-  - History entries are written like normal spins and contain no indication of the secret code.
-*/
-
 (function(){
-  const SECRET_CODE = 'silas-is-straight' // exact string (kept in code here)
+  const SECRET_CODE = 'silas-is-straight';
 
-  // Symbols and weights
   const SYMBOLS = [
     { sym: '🍒', weight: 18, type:'fruit' },
     { sym: '🍋', weight: 16, type:'fruit' },
@@ -141,11 +144,8 @@
   ];
 
   const weighted = [];
-  SYMBOLS.forEach(s=> {
-    for(let i=0;i<s.weight;i++) weighted.push(s);
-  });
+  SYMBOLS.forEach(s=> { for(let i=0;i<s.weight;i++) weighted.push(s); });
 
-  // DOM
   const symEls = [document.getElementById('sym0'), document.getElementById('sym1'), document.getElementById('sym2')];
   const spinBtn = document.getElementById('spinBtn');
   const autoBtn = document.getElementById('autoBtn');
@@ -158,7 +158,6 @@
   const resetBtn = document.getElementById('resetBtn');
   const maxBetBtn = document.getElementById('maxBet');
 
-  // State
   let balance = 1000;
   let lastWin = 0;
   let spinning = false;
@@ -166,11 +165,10 @@
   let soundOn = true;
   let spinTimerIds = [];
   let history = [];
-  let lastNumericBet = 10; // remembered numeric bet
+  let lastNumericBet = 10;
 
-  // Payout multipliers
   function computePayout(symbols, bet){
-    const s0 = symbols[0], s1 = symbols[1], s2 = symbols[2];
+    const [s0,s1,s2] = symbols;
     if(s0.sym==='7️⃣' && s1.sym==='7️⃣' && s2.sym==='7️⃣') return bet * 200;
     if(s0.sym==='⭐' && s1.sym==='⭐' && s2.sym==='⭐') return bet * 80;
     if(s0.type==='fruit' && s1.type==='fruit' && s2.type==='fruit' && s0.sym===s1.sym && s1.sym===s2.sym) return bet * 30;
@@ -180,197 +178,116 @@
   }
 
   function pickRandomSymbol(){
-    const idx = Math.floor(Math.random()*weighted.length);
-    return weighted[idx];
+    return weighted[Math.floor(Math.random()*weighted.length)];
   }
 
-  // parse bet input: detect secret code (hidden) or numeric bet
   function parseBetInput(){
     const v = (betInput.value || '').trim();
-    if(v === '') return { isCode:false, bet: lastNumericBet || 10 };
-    if(v === SECRET_CODE) {
-      return { isCode: true, bet: lastNumericBet || 10 };
-    }
+    if(v === '') return { isCode:false, bet:lastNumericBet || 10 };
+    if(v === SECRET_CODE) return { isCode:true, bet:lastNumericBet || 10 };
     const n = Number(v);
-    if(!Number.isNaN(n) && isFinite(n) && n > 0){
+    if(!isNaN(n) && isFinite(n) && n>0){
       const bn = Math.floor(n);
       lastNumericBet = bn;
-      return { isCode:false, bet: bn };
+      return { isCode:false, bet:bn };
     }
-    // fallback
-    return { isCode:false, bet: lastNumericBet || 10 };
+    return { isCode:false, bet:lastNumericBet || 10 };
   }
 
   function updateUI(){
     balanceEl.textContent = `$${balance}`;
     lastWinEl.textContent = lastWin>0 ? `$${lastWin}` : '—';
-
-    // Render history with normalized, non-revealing entries:
-    // format: "<symbols> — bet 10000 - won 2000000" (lowercase 'bet'/'won' as requested)
     historyEl.innerHTML = history.slice().reverse().map(h=>{
-      const resultText = (h.win > 0) ? `bet ${h.bet} - won ${h.win}` : `bet ${h.bet} - lost`;
-      const cls = h.win>0 ? 'win' : 'lose';
-      return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><span class="${cls}">${h.reelStr}</span> — ${resultText}</div>`;
+      const result = (h.win>0)?`bet ${h.bet} - won ${h.win}`:`bet ${h.bet} - lost`;
+      const cls = h.win>0?'win':'lose';
+      return `<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><span class="${cls}">${h.reelStr}</span> — ${result}</div>`;
     }).join('');
-
     const betInfo = parseBetInput();
-    // disable spin if spinning or bet invalid or insufficient funds
     const bet = betInfo.bet;
-    spinBtn.disabled = spinning || !(bet > 0) || balance < bet;
-    spinBtn.style.opacity = spinBtn.disabled ? 0.6 : 1;
+    spinBtn.disabled = spinning || !(bet>0) || balance<bet;
+    spinBtn.style.opacity = spinBtn.disabled?0.6:1;
   }
 
   function playSound(type){
     if(!soundOn) return;
     try{
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.connect(g);
-      g.connect(ctx.destination);
-      if(type==='spin'){ o.type='sine'; o.frequency.value=400; g.gain.value=0.04; }
-      if(type==='win'){ o.type='triangle'; o.frequency.value=880; g.gain.value=0.06;}
-      if(type==='lose'){ o.type='sine'; o.frequency.value=220; g.gain.value=0.03;}
-      o.start();
-      setTimeout(()=>{ o.stop(); ctx.close(); }, type==='win'?300:120);
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      if(type==='spin'){o.type='sine';o.frequency.value=400;g.gain.value=0.04;}
+      if(type==='win'){o.type='triangle';o.frequency.value=880;g.gain.value=0.06;}
+      if(type==='lose'){o.type='sine';o.frequency.value=220;g.gain.value=0.03;}
+      o.start();setTimeout(()=>{o.stop();ctx.close();},type==='win'?300:120);
     }catch(e){}
   }
 
   function doSpin(){
     if(spinning) return;
-const betInfo = parseBetInput();
-let bet = Math.max(1, Math.floor(betInfo.bet || 1));
-const usedCode = betInfo.isCode;
-
-// Force admin bet of 10,000, ignore balance check
-if (usedCode) {
-  bet = max;
-} else {
-  if (balance < bet) {
-    alert('Not enough funds for that bet. Add more or decrease bet.');
-    return;
-  }
-}
-
-    spinning = true;
-    updateUI();
-    balance -= bet;
-    playSound('spin');
-
-    // determine final symbols (respect hidden code)
+    const betInfo=parseBetInput();
+    let bet=Math.max(1,Math.floor(betInfo.bet||1));
+    const usedCode=betInfo.isCode;
+    if(balance<bet && !usedCode){alert('Not enough funds');return;}
+    spinning=true;updateUI();balance-=bet;playSound('spin');
     let final;
-    if(usedCode){
-      final = [ {sym:'7️⃣', type:'special'}, {sym:'7️⃣', type:'special'}, {sym:'7️⃣', type:'special'} ];
-    } else {
-      final = [pickRandomSymbol(), pickRandomSymbol(), pickRandomSymbol()];
-    }
-
-    // staggered stops
-    const stops = [800 + Math.random()*400, 1400 + Math.random()*400, 2000 + Math.random()*500];
-
-    spinTimerIds.forEach(id=>clearInterval(id));
-    spinTimerIds = [];
-
+    if(usedCode){final=[{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'},{sym:'7️⃣',type:'special'}];}
+    else{final=[pickRandomSymbol(),pickRandomSymbol(),pickRandomSymbol()];}
+    const stops=[800+Math.random()*400,1400+Math.random()*400,2000+Math.random()*500];
+    spinTimerIds.forEach(id=>clearInterval(id));spinTimerIds=[];
     for(let i=0;i<3;i++){
-      const symEl = symEls[i];
-      let cycle = setInterval(()=>{
-        const r = weighted[Math.floor(Math.random()*weighted.length)];
-        symEl.textContent = r.sym;
-      }, 80 + i*10);
+      const symEl=symEls[i];
+      let cycle=setInterval(()=>{symEl.textContent=weighted[Math.floor(Math.random()*weighted.length)].sym;},80+i*10);
       spinTimerIds.push(cycle);
-
-      ((idx,stopTime,cycleRef)=>{
-        setTimeout(()=>{
-          clearInterval(cycleRef);
-          symEl.textContent = final[idx].sym;
-          symEl.parentElement.classList.add('highlight');
-          setTimeout(()=>symEl.parentElement.classList.remove('highlight'), 700);
-        }, stopTime);
-      })(i, stops[i], cycle);
+      setTimeout(()=>{clearInterval(cycle);symEl.textContent=final[i].sym;symEl.parentElement.classList.add('highlight');setTimeout(()=>symEl.parentElement.classList.remove('highlight'),700);},stops[i]);
     }
-
-    const finalStop = Math.max(...stops) + 120;
+    const finalStop=Math.max(...stops)+120;
     setTimeout(()=>{
-      const win = computePayout(final, bet);
-      lastWin = win;
-      if(win>0){
-        balance += win;
-        playSound('win');
-      } else {
-        playSound('lose');
-      }
-
-      // history entry — deliberately non-revealing
-      const reelStr = final.map(x=>x.sym).join(' ');
-      history.push({ reelStr, bet, win, time: Date.now() });
-      if(history.length>200) history.shift();
-
-      spinning = false;
-      updateUI();
-
-      // auto-spin behavior
-      if(auto && balance >= Number(lastNumericBet) && !spinning){
-        setTimeout(()=>{ if(!spinning) doSpin(); }, 450);
-      }
-    }, finalStop);
+      const win=computePayout(final,bet);
+      lastWin=win;if(win>0){balance+=win;playSound('win');}else{playSound('lose');}
+      const reelStr=final.map(x=>x.sym).join(' ');history.push({reelStr,bet,win,time:Date.now()});if(history.length>200)history.shift();
+      spinning=false;updateUI();
+      if(auto&&balance>=Number(lastNumericBet)&&!spinning){setTimeout(()=>{if(!spinning)doSpin();},450);}
+    },finalStop);
   }
 
-  // Wire UI
-  spinBtn.addEventListener('click', doSpin);
-
-  autoBtn.addEventListener('click', ()=>{
-    auto = !auto;
-    autoBtn.textContent = auto ? 'AUTO ON' : 'AUTO OFF';
-    autoBtn.style.background = auto ? '#2e7d32' : '';
-    if(auto && !spinning){
-      if(balance >= (lastNumericBet || 10)) doSpin();
-    }
-  });
-
-  soundBtn.addEventListener('click', ()=>{
-    soundOn = !soundOn;
-    soundBtn.textContent = soundOn ? 'ON' : 'OFF';
-  });
-
-  addMoneyBtn.addEventListener('click', ()=>{
-    balance += 100;
-    updateUI();
-  });
-
-  resetBtn.addEventListener('click', ()=>{
-    if(!confirm('Reset balance to $1000 and clear history?')) return;
-    balance = 1000;
-    history = [];
-    lastWin = 0;
-    lastNumericBet = 10;
-    betInput.value = '10';
-    updateUI();
-  });
-
-  maxBetBtn.addEventListener('click', ()=>{
-    lastNumericBet = Math.max(1, Math.floor(balance));
-    betInput.value = String(lastNumericBet);
-    updateUI();
-  });
-
-  betInput.addEventListener('input', ()=>{
-    const val = betInput.value.trim();
-    const n = Number(val);
-    if(!Number.isNaN(n) && isFinite(n) && n > 0){
-      lastNumericBet = Math.floor(n);
-    }
-    updateUI();
-  });
-
-  // init symbols
-  symEls.forEach((el)=> el.textContent = weighted[Math.floor(Math.random()*weighted.length)].sym);
+  spinBtn.addEventListener('click',doSpin);
+  autoBtn.addEventListener('click',()=>{auto=!auto;autoBtn.textContent=auto?'AUTO ON':'AUTO OFF';autoBtn.style.background=auto?'#2e7d32':'';if(auto&&!spinning){if(balance>=(lastNumericBet||10))doSpin();}});
+  soundBtn.addEventListener('click',()=>{soundOn=!soundOn;soundBtn.textContent=soundOn?'ON':'OFF';});
+  addMoneyBtn.addEventListener('click',()=>{balance+=100;updateUI();});
+  resetBtn.addEventListener('click',()=>{if(!confirm('Reset balance?'))return;balance=1000;history=[];lastWin=0;lastNumericBet=10;betInput.value='10';updateUI();});
+  maxBetBtn.addEventListener('click',()=>{lastNumericBet=Math.max(1,Math.floor(balance));betInput.value=String(lastNumericBet);updateUI();});
+  betInput.addEventListener('input',()=>{const n=Number(betInput.value.trim());if(!isNaN(n)&&isFinite(n)&&n>0)lastNumericBet=Math.floor(n);updateUI();});
+  symEls.forEach(el=>el.textContent=weighted[Math.floor(Math.random()*weighted.length)].sym);
   updateUI();
 
-  // expose minor helpers to console (no admin reveal)
-  window.__tinySlots = { doSpin, getBalance: ()=>balance, setBalance:(b)=>{balance=b;updateUI();}, lastNumericBet: ()=> lastNumericBet };
+  // Modal functionality (press '|' to open)
+  const moneyModal=document.getElementById('moneyModal');
+  const moneyInput=document.getElementById('moneyInput');
+  const confirmAdd=document.getElementById('confirmAdd');
+  const cancelAdd=document.getElementById('cancelAdd');
 
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='|'){
+      moneyModal.style.display='flex';
+      moneyInput.value='';
+      moneyInput.focus();
+    }
+  });
+
+  confirmAdd.addEventListener('click',()=>{
+    const amount=Number(moneyInput.value);
+    if(!isNaN(amount)&&amount>0){
+      balance+=amount;
+      updateUI();
+      alert(`Added $${amount.toLocaleString()}`);
+      moneyModal.style.display='none';
+    }else{
+      alert('Enter a valid number.');
+    }
+  });
+
+  cancelAdd.addEventListener('click',()=>{moneyModal.style.display='none';});
+  moneyModal.addEventListener('click',(e)=>{if(e.target===moneyModal)moneyModal.style.display='none';});
 })();
 </script>
 </body>
 </html>
-
